@@ -63,6 +63,20 @@ body{
 .icon-btn{background:var(--panel);border:1px solid var(--line2);color:var(--ink-dim);border-radius:10px;
   padding:10px 14px;font-size:13px;cursor:pointer;font-family:var(--sans);transition:.2s}
 .icon-btn:hover{color:var(--gold);border-color:var(--line)}
+.server-bar{display:flex;align-items:center;gap:8px}
+#serverSelect{background:var(--panel);border:1px solid var(--line2);color:var(--gold);border-radius:10px;
+  padding:9px 10px;font-size:13px;font-family:var(--sans);outline:none;cursor:pointer;max-width:150px}
+#serverSelect:focus{border-color:var(--gold)}
+.srv-row{display:grid;grid-template-columns:1.2fr .8fr .8fr auto auto;gap:8px;align-items:center;margin-bottom:8px;font-size:13px}
+.srv-row input{background:rgba(255,255,255,.05);border:1px solid var(--line2);border-radius:8px;color:var(--ink);
+  padding:7px 9px;font-size:13px;outline:none;font-family:var(--sans)}
+.srv-row input:focus{border-color:var(--gold)}
+.srv-row .per{color:var(--gold-dim);font-family:var(--mono);white-space:nowrap}
+.srv-row .cur-tag{font-size:11px;color:var(--green);border:1px solid rgba(95,143,122,.5);padding:1px 7px;border-radius:20px}
+.srv-add{display:flex;gap:8px;margin-top:12px}
+.srv-add input{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--line2);border-radius:8px;
+  color:var(--ink);padding:7px 10px;font-size:13px;outline:none;font-family:var(--sans)}
+.srv-add input:focus{border-color:var(--gold)}
 
 /* ===== 主区网格 ===== */
 .main{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
@@ -204,6 +218,10 @@ footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);l
         <div class="yuan" id="stMonthYuan">≈ 0 元</div>
       </div>
     </div>
+    <div class="server-bar">
+      <select id="serverSelect" title="切换服务器（估价、金价、记录各自独立）"></select>
+      <button class="icon-btn" id="btnServer">管理服务器</button>
+    </div>
     <button class="icon-btn" id="btnGold">金价设置</button>
   </header>
 
@@ -299,6 +317,27 @@ footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);l
       </details>
 
       <details class="card">
+        <summary>每日金价记录 <span class="cnt" id="goldHistCnt"></span></summary>
+        <div class="inner">
+          <p class="hint-line">保存金价设置时自动记录当天；也可手动补录（同日重复会覆盖）。走势图展示近 30 天。</p>
+          <div class="tbl-wrap" style="max-height:240px;overflow-y:auto">
+            <table class="tbl">
+              <thead><tr><th style="width:25%">日期</th><th style="width:20%">多少万</th><th style="width:20%">多少元</th><th style="width:20%">元/100万</th><th></th></tr></thead>
+              <tbody id="goldHistBody"></tbody>
+            </table>
+          </div>
+          <div class="chart-box" id="chartGold" style="height:200px"></div>
+          <div class="chart-nodata" id="goldEmpty" style="display:none">暂无金价记录</div>
+          <div class="add-price">
+            <input type="date" id="ghDate" title="日期">
+            <input type="number" id="ghBase" step="100" min="100" placeholder="多少万" style="width:88px">
+            <input type="number" id="ghRate" step="0.1" min="0" placeholder="多少元" style="width:88px">
+            <button type="button" class="mini-btn" id="btnAddGold">补录</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="card">
         <summary>数据备份</summary>
         <div class="inner">
           <div class="dm-actions">
@@ -315,6 +354,22 @@ footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);l
   </div>
 
   <footer>梦幻搬砖账本 · 估价为市场参考价，请以实际摆摊成交为准 · 数据仅存于本机</footer>
+</div>
+
+<!-- ===== 服务器管理模态 ===== -->
+<div class="modal-mask" id="serverMask">
+  <div class="modal">
+    <h3>服务器管理</h3>
+    <p class="hint-line" style="margin-bottom:12px">每个服务器的估价表、金价、记录互相独立。当前使用的服务器标注为「当前」。</p>
+    <div id="srvList"></div>
+    <div class="srv-add">
+      <input id="nsName" placeholder="新服务器名称，如：紫禁城">
+      <button class="mini-btn" id="btnAddServer">添加</button>
+    </div>
+    <div class="modal-actions">
+      <button class="mini-btn" id="btnServerClose">关闭</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===== 金价设置模态 ===== -->
@@ -376,29 +431,54 @@ var DEFAULT_PRICES=[
   ['强化石','材料消耗',5],['百炼精铁','材料消耗',8],['灵石·灵','材料消耗',4]
 ];
 
-/* ==================== 状态 ==================== */
-var LS_REC='mh_records', LS_PRI='mh_prices', LS_SET='mh_settings';
-var records=[], prices=[], settings={goldBase:3000,goldRate:218};
-var charts={trend:null,source:null};
+/* ==================== 状态（v2 多服务器） ==================== */
+/* DB 结构：
+   {version:2, activeServer:id, servers:[{id,name,goldBase,goldRate}],
+    prices:{sid:[{name,cat,price}]}, records:{sid:[记录]}, goldHistory:{sid:[{date,base,rate}]}}
+*/
+var LS_DB='mh_db_v2';
+var DB={version:2,activeServer:null,servers:[],prices:{},records:{},goldHistory:{}};
+var records=[], prices=[], settings=null; /* 当前服务器视图 */
+var charts={trend:null,source:null,gold:null};
 var toastTimer=null;
 
+function defaultPrices(){return DEFAULT_PRICES.map(function(p){return {name:p[0],cat:p[1],price:p[2]};});}
+function newSrv(name){return {id:'srv'+Date.now().toString(36),name:name||'未命名服务器',goldBase:3000,goldRate:218};}
+
 function load(){
-  var rawRec=localStorage.getItem(LS_REC);
-  try{records=rawRec?JSON.parse(rawRec):[];}catch(e){records=[];}
-  var rawPri=localStorage.getItem(LS_PRI);
-  if(rawPri===null){
-    prices=DEFAULT_PRICES.map(function(p){return {name:p[0],cat:p[1],price:p[2]};});
-    save();
-  }else{
-    try{prices=JSON.parse(rawPri)||[];}catch(e){prices=DEFAULT_PRICES.map(function(p){return {name:p[0],cat:p[1],price:p[2]};});}
+  var raw=localStorage.getItem(LS_DB);
+  if(raw){
+    try{DB=Object.assign({version:2,activeServer:null,servers:[],prices:{},records:{},goldHistory:{}},JSON.parse(raw));}catch(e){}
   }
-  try{settings=Object.assign({goldBase:3000,goldRate:218},JSON.parse(localStorage.getItem(LS_SET))||{});}catch(e){}
+  if(!DB.servers||!DB.servers.length){
+    /* 从 v1 迁移旧数据 → 默认服务器「绍兴兰亭」 */
+    var srv=newSrv('绍兴兰亭');
+    try{
+      var os=JSON.parse(localStorage.getItem('mh_settings')||'null');
+      if(os){srv.goldBase=os.goldBase||3000;srv.goldRate=os.goldRate||218;}
+    }catch(e){}
+    DB.servers=[srv];DB.activeServer=srv.id;
+    try{DB.records[srv.id]=JSON.parse(localStorage.getItem('mh_records')||'[]')||[];}catch(e){DB.records[srv.id]=[];}
+    var rp=localStorage.getItem('mh_prices');
+    try{DB.prices[srv.id]=rp?JSON.parse(rp):defaultPrices();}catch(e){DB.prices[srv.id]=defaultPrices();}
+    if(!DB.prices[srv.id]||!DB.prices[srv.id].length)DB.prices[srv.id]=defaultPrices();
+    DB.goldHistory[srv.id]=[];
+    localStorage.removeItem('mh_records');localStorage.removeItem('mh_prices');localStorage.removeItem('mh_settings');
+    save();
+  }
+  if(!DB.servers.length){DB.servers=[newSrv('绍兴兰亭')];DB.activeServer=DB.servers[0].id;}
+  if(!DB.activeServer||!DB.servers.some(function(s){return s.id===DB.activeServer;}))DB.activeServer=DB.servers[0].id;
+  loadCur();
 }
-function save(){
-  localStorage.setItem(LS_REC,JSON.stringify(records));
-  localStorage.setItem(LS_PRI,JSON.stringify(prices));
-  localStorage.setItem(LS_SET,JSON.stringify(settings));
+function loadCur(){
+  var s=DB.servers.filter(function(x){return x.id===DB.activeServer;})[0]||DB.servers[0];
+  DB.activeServer=s.id;
+  settings=s; /* settings 直接引用服务器对象，改金价即改服务器 */
+  records=DB.records[s.id]||(DB.records[s.id]=[]);
+  prices=DB.prices[s.id]||(DB.prices[s.id]=defaultPrices());
 }
+function save(){localStorage.setItem(LS_DB,JSON.stringify(DB));}
+function curGoldList(){return DB.goldHistory[DB.activeServer]||(DB.goldHistory[DB.activeServer]=[]);}
 
 /* ==================== 工具函数 ==================== */
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -427,7 +507,10 @@ var addForm=el('addForm'), recDate=el('recDate'), itemName=el('itemName'),
   srcList=el('srcList'), priceBody=el('priceBody'), priceCnt=el('priceCnt'),
   stToday=el('stToday'), stTodayYuan=el('stTodayYuan'),
   stWeek=el('stWeek'), stWeekYuan=el('stWeekYuan'),
-  stMonth=el('stMonth'), stMonthYuan=el('stMonthYuan');
+  stMonth=el('stMonth'), stMonthYuan=el('stMonthYuan'),
+  serverSelect=el('serverSelect'), serverMask=el('serverMask'), srvList=el('srvList'),
+  goldHistBody=el('goldHistBody'), goldHistCnt=el('goldHistCnt'), chartGold=el('chartGold'),
+  goldEmpty=el('goldEmpty');
 
 /* ==================== 渲染 ==================== */
 function renderStats(){
@@ -539,6 +622,61 @@ function renderPrice(){
   }).join('');
 }
 
+function renderServers(){
+  /* 顶栏下拉 */
+  serverSelect.innerHTML=DB.servers.map(function(s){
+    return '<option value="'+esc(s.id)+'"'+(s.id===DB.activeServer?' selected':'')+'>'+esc(s.name)+'</option>';
+  }).join('');
+  /* 管理模态列表 */
+  srvList.innerHTML=DB.servers.map(function(s){
+    return '<div class="srv-row">'+
+      '<input value="'+esc(s.name)+'" data-sid="'+esc(s.id)+'" data-k="name" title="服务器名称">'+
+      '<input type="number" step="100" min="100" value="'+s.goldBase+'" data-sid="'+esc(s.id)+'" data-k="base" title="多少万">'+
+      '<input type="number" step="0.1" min="0" value="'+s.goldRate+'" data-sid="'+esc(s.id)+'" data-k="rate" title="多少元">'+
+      '<span class="per">'+(s.goldRate/s.goldBase*100).toFixed(1)+'元/100万</span>'+
+      (s.id===DB.activeServer?'<span class="cur-tag">当前</span>':'<button class="del" data-srvdel="'+esc(s.id)+'" title="删除">✕</button>')+
+      '</div>';
+  }).join('');
+}
+
+function renderGoldHist(){
+  var gh=curGoldList().slice().sort(function(a,b){return a.date<b.date?1:-1;});
+  goldHistCnt.textContent='共 '+gh.length+' 条';
+  goldHistBody.innerHTML=gh.map(function(g,i){
+    return '<tr><td>'+esc(g.date.slice(5))+'</td><td>'+g.base+'</td><td>'+g.rate+'</td>'+
+      '<td class="amt">'+(g.rate/g.base*100).toFixed(1)+'</td>'+
+      '<td><button class="del" data-gdel="'+i+'" title="删除">✕</button></td></tr>';
+  }).join('');
+  var emptyEl=goldEmpty, box=chartGold;
+  if(!window.echarts){
+    if(gh.length){box.style.display='none';emptyEl.style.display='block';emptyEl.textContent='图表库加载失败，请检查网络后刷新';}
+    return;
+  }
+  if(!gh.length){box.style.display='none';emptyEl.style.display='block';emptyEl.textContent='暂无金价记录，保存金价时自动记录当天';if(charts.gold){charts.gold.dispose();charts.gold=null;}return;}
+  box.style.display='block';emptyEl.style.display='none';
+  /* 近30天走势：每100万=多少元 */
+  var days=[],vals=[],i,d,s,map={};
+  gh.forEach(function(g){map[g.date]=g.rate/g.base*100;});
+  for(i=29;i>=0;i--){d=new Date();d.setDate(d.getDate()-i);s=fmtDate(d);
+    days.push(s.slice(5).replace('-','/'));vals.push(map[s]||null);}
+  if(!charts.gold){charts.gold=echarts.init(box);}
+  charts.gold.setOption({
+    grid:{left:52,right:14,top:24,bottom:26},
+    tooltip:{trigger:'axis',backgroundColor:'rgba(18,25,45,.95)',borderColor:'rgba(217,178,95,.4)',
+      textStyle:{color:'#efe6cf',fontSize:12},
+      formatter:function(ps){var p=ps[0],v=p.value;return p.axisValueLabel+(v==null?'<br/>当日无记录':'<br/>每100万：'+v.toFixed(1)+' 元');}},
+    xAxis:{type:'category',data:days,boundaryGap:false,
+      axisLine:{lineStyle:{color:'rgba(255,255,255,.15)'}},axisTick:{show:false},
+      axisLabel:{color:'#a89e85',fontSize:10,interval:4}},
+    yAxis:{type:'value',name:'元/100万',nameTextStyle:{color:'#6d6554'},
+      axisLabel:{color:'#a89e85',fontSize:11},splitLine:{lineStyle:{color:'rgba(255,255,255,.06)'}}},
+    series:[{type:'line',data:vals,connectNulls:false,smooth:true,symbol:'circle',symbolSize:5,
+      lineStyle:{color:'#6f9db8',width:2},
+      itemStyle:{color:'#6f9db8'},
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(111,157,184,.35)'},{offset:1,color:'rgba(111,157,184,.02)'}])}}]
+  },true);
+}
+
 /* ==================== 事件绑定 ==================== */
 function bindEvents(){
   recDate.value=todayStr();
@@ -620,19 +758,86 @@ function bindEvents(){
   el('btnGoldSave').addEventListener('click',function(){
     var b=parseFloat(el('goldBase').value),r=parseFloat(el('goldRate').value);
     if(isNaN(b)||b<=0||isNaN(r)||r<=0){toast('金价参数无效');return;}
-    settings.goldBase=b;settings.goldRate=r;save();renderAll();
+    settings.goldBase=b;settings.goldRate=r;
+    /* 保存金价时自动记录当天历史（同日覆盖） */
+    var gh=curGoldList(),t=todayStr(),ex=null,i;
+    for(i=0;i<gh.length;i++){if(gh[i].date===t){ex=gh[i];break;}}
+    if(ex){ex.base=b;ex.rate=r;}else{gh.push({date:t,base:b,rate:r});}
+    save();renderAll();
     el('goldMask').classList.remove('show');
-    toast('金价已更新：'+b+'万 = '+r+'元');
+    toast('金价已更新：'+b+'万 = '+r+'元，已记入今日');
+  });
+
+  /* ===== 服务器切换与管理 ===== */
+  serverSelect.addEventListener('change',function(){
+    var id=this.value;
+    if(id&&id!==DB.activeServer){DB.activeServer=id;save();loadCur();renderAll();toast('已切换到 '+settings.name);}
+  });
+  el('btnServer').addEventListener('click',function(){renderServers();serverMask.classList.add('show');});
+  el('btnServerClose').addEventListener('click',function(){serverMask.classList.remove('show');});
+  serverMask.addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
+  el('btnAddServer').addEventListener('click',function(){
+    var n=el('nsName').value.trim();
+    if(!n){toast('请输入服务器名称');return;}
+    if(DB.servers.some(function(s){return s.name===n;})){toast('已存在同名服务器');return;}
+    var s=newSrv(n);
+    DB.servers.push(s);
+    DB.records[s.id]=[];DB.prices[s.id]=defaultPrices();DB.goldHistory[s.id]=[];
+    save();renderServers();
+    el('nsName').value='';
+    toast('已添加服务器：'+n);
+  });
+  srvList.addEventListener('change',function(e){
+    var t=e.target,sid=t.dataset.sid,k=t.dataset.k,val=t.value;
+    var s=DB.servers.filter(function(x){return x.id===sid;})[0];
+    if(!s)return;
+    if(k==='name'){if(!val.trim())return;s.name=val.trim();}
+    else if(k==='base'){var b=parseFloat(val);if(isNaN(b)||b<=0)return;s.goldBase=b;}
+    else if(k==='rate'){var r=parseFloat(val);if(isNaN(r)||r<0)return;s.goldRate=r;}
+    save();
+    if(s.id===DB.activeServer)renderAll();else renderServers();
+  });
+  srvList.addEventListener('click',function(e){
+    var b=e.target.closest('.del');
+    if(!b||!b.dataset.srvdel)return;
+    if(DB.servers.length<=1){toast('至少保留一个服务器');return;}
+    var id=b.dataset.srvdel;
+    var s=DB.servers.filter(function(x){return x.id===id;})[0];
+    if(!confirm('删除服务器「'+s.name+'」？其记录、估价、金价历史将一并删除，不可恢复。'))return;
+    DB.servers=DB.servers.filter(function(x){return x.id!==id;});
+    delete DB.records[id];delete DB.prices[id];delete DB.goldHistory[id];
+    if(DB.activeServer===id)DB.activeServer=DB.servers[0].id;
+    save();loadCur();renderAll();
+    toast('已删除服务器');
+  });
+
+  /* ===== 金价历史：补录 + 删除 ===== */
+  el('ghDate').value=todayStr();
+  el('btnAddGold').addEventListener('click',function(){
+    var t=el('ghDate').value||todayStr(),b=parseFloat(el('ghBase').value),r=parseFloat(el('ghRate').value);
+    if(isNaN(b)||b<=0||isNaN(r)||r<=0){toast('请输入有效的万 / 元');return;}
+    var gh=curGoldList(),ex=null,i;
+    for(i=0;i<gh.length;i++){if(gh[i].date===t){ex=gh[i];break;}}
+    if(ex){ex.base=b;ex.rate=r;}else{gh.push({date:t,base:b,rate:r});}
+    save();renderGoldHist();
+    el('ghBase').value='';el('ghRate').value='';
+    toast('金价已记录：'+t+' '+b+'万 = '+r+'元');
+  });
+  goldHistBody.addEventListener('click',function(e){
+    var b=e.target.closest('.del');
+    if(!b||b.dataset.gdel===undefined)return;
+    var gh=curGoldList(),i=parseInt(b.dataset.gdel,10);
+    if(gh[i]){gh.splice(i,1);save();renderGoldHist();toast('已删除该条金价记录');}
   });
 
   el('btnExport').addEventListener('click',function(){
-    var blob=new Blob([JSON.stringify({records:records,prices:prices,settings:settings,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+    var blob=new Blob([JSON.stringify({db:DB,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
     var a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     a.download='梦幻搬砖备份_'+todayStr()+'.json';
     document.body.appendChild(a);a.click();document.body.removeChild(a);
     setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
-    toast('备份已导出');
+    toast('备份已导出（含全部服务器）');
   });
   el('btnImport').addEventListener('click',function(){el('importFile').click();});
   el('importFile').addEventListener('change',function(){
@@ -641,12 +846,13 @@ function bindEvents(){
     rd.onload=function(){
       try{
         var d=JSON.parse(rd.result);
-        if(!d||!Array.isArray(d.records)){toast('备份文件格式不正确');return;}
-        records=d.records;
-        if(Array.isArray(d.prices)&&d.prices.length)prices=d.prices;
-        if(d.settings)settings=Object.assign(settings,d.settings);
-        save();renderAll();
-        toast('导入成功：'+records.length+' 条记录');
+        if(!d||!d.db||!Array.isArray(d.db.servers)||!d.db.servers.length){toast('备份文件格式不正确');return;}
+        DB=d.db;
+        DB.version=2;
+        if(!DB.prices)DB.prices={};if(!DB.records)DB.records={};if(!DB.goldHistory)DB.goldHistory={};
+        if(!DB.activeServer||!DB.servers.some(function(s){return s.id===DB.activeServer;}))DB.activeServer=DB.servers[0].id;
+        save();loadCur();renderAll();
+        toast('导入成功：'+DB.servers.length+' 个服务器');
       }catch(err){toast('读取备份失败：'+err.message);}
     };
     rd.readAsText(f);
@@ -668,12 +874,13 @@ function bindEvents(){
   window.addEventListener('resize',function(){
     if(charts.trend)charts.trend.resize();
     if(charts.source)charts.source.resize();
+    if(charts.gold)charts.gold.resize();
   });
 }
 
 function renderAll(){
-  renderStats();renderDetail();renderSources();renderTrend();renderSourceChart();
-  refreshDatalist();renderPrice();
+  renderServers();renderStats();renderDetail();renderSources();renderTrend();renderSourceChart();
+  refreshDatalist();renderPrice();renderGoldHist();
 }
 
 /* ==================== 启动 ==================== */
@@ -683,7 +890,7 @@ renderAll();
 
 /* ECharts 就绪钩子：动态脚本加载完成后补渲染图表（幂等，重复调用安全） */
 window.__chartsReady=function(){
-  if(window.echarts){renderTrend();renderSourceChart();}
+  if(window.echarts){renderTrend();renderSourceChart();renderGoldHist();}
 };
 })();
 </script>
