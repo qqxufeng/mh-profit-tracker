@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>梦幻搬砖收益账本</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23d9b25f'/%3E%3Crect x='11' y='11' width='10' height='10' rx='2' fill='%230d1424'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://miaoda.feishu.cn" crossorigin>
+<link href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+/* ECharts 动态加载：jsdelivr 失败自动切 cdnjs 备用镜像 */
+(function(){
+  function boot(src){
+    var s=document.createElement('script');
+    s.src=src;
+    s.onload=function(){setTimeout(function(){if(window.__chartsReady)window.__chartsReady();},300);};
+    s.onerror=function(){
+      if(src.indexOf('jsdelivr')>-1)boot('https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js');
+    };
+    document.head.appendChild(s);
+  }
+  boot('https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js');
+})();
+</script>
+<style>
+:root{
+  --bg0:#0c1220; --bg1:#111a2e; --panel:#141d33; --panel2:#182238;
+  --line:rgba(217,178,95,.20); --line2:rgba(255,255,255,.08);
+  --gold:#d9b25f; --gold-hi:#eccb82; --gold-dim:#8f7848;
+  --red:#c95b4a; --green:#5f8f7a; --cyan:#6f9db8;
+  --ink:#efe6cf; --ink-dim:#a89e85; --ink-faint:#6d6554;
+  --serif:'Noto Serif SC', 'Songti SC', SimSun, serif;
+  --sans:'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --mono:'Noto Sans SC', ui-monospace, Consolas, monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans); color:var(--ink);
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(217,178,95,.07), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(111,157,184,.06), transparent 60%),
+    linear-gradient(160deg, var(--bg0), var(--bg1));
+  min-height:100vh; padding:18px clamp(12px, 3vw, 36px) 48px;
+}
+.wrap{max-width:1280px;margin:0 auto}
+
+/* ===== 顶栏 ===== */
+.topbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.brand .coin{width:42px;height:42px;flex:none}
+.brand h1{font-family:var(--serif);font-weight:900;font-size:26px;letter-spacing:.06em;
+  background:linear-gradient(180deg,#f6e3b4,#d9a63f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand .sub{font-size:12px;color:var(--ink-faint);margin-top:2px;letter-spacing:.14em}
+.stat-cards{display:flex;gap:12px;flex-wrap:wrap}
+.stat-card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);
+  border-radius:12px;padding:10px 18px;min-width:132px;text-align:center}
+.stat-card .lab{font-size:12px;color:var(--ink-faint);letter-spacing:.2em}
+.stat-card .val{font-family:var(--serif);font-weight:700;font-size:22px;color:var(--gold);margin-top:2px}
+.stat-card .yuan{font-size:12px;color:var(--ink-dim);margin-top:1px}
+.stat-card.today{border-color:rgba(217,178,95,.5);box-shadow:0 0 18px rgba(217,178,95,.12) inset}
+.stat-card.today .val{font-size:28px}
+.icon-btn{background:var(--panel);border:1px solid var(--line2);color:var(--ink-dim);border-radius:10px;
+  padding:10px 14px;font-size:13px;cursor:pointer;font-family:var(--sans);transition:.2s}
+.icon-btn:hover{color:var(--gold);border-color:var(--line)}
+
+/* ===== 主区网格 ===== */
+.main{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start}
+@media (max-width:1000px){.main{grid-template-columns:1fr}}
+@media (max-width:640px){
+  .frow input,.frow select,.add-price input,.add-price select{font-size:16px}
+}
+
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line2);
+  border-radius:14px;padding:16px 18px;margin-bottom:16px}
+.card h2{font-family:var(--serif);font-weight:700;font-size:16px;letter-spacing:.08em;color:var(--gold);
+  display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.card h2 .cnt{font-size:12px;color:var(--ink-faint);font-family:var(--sans);letter-spacing:0}
+
+/* ===== 表单 ===== */
+.frm{display:flex;flex-direction:column;gap:10px}
+.frow{display:grid;grid-template-columns:76px 1fr;align-items:center;gap:8px}
+.frow label{font-size:13px;color:var(--ink-dim)}
+.frow input,.frow select{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line2);
+  border-radius:8px;color:var(--ink);padding:8px 10px;font-size:14px;font-family:var(--sans);outline:none;transition:.2s}
+.frow input:focus,.frow select:focus{border-color:var(--gold);background:rgba(217,178,95,.06)}
+.frow input::placeholder{color:var(--ink-faint)}
+.frow .hint{font-size:11px;color:var(--ink-faint);grid-column:2}
+.frow.inline{grid-template-columns:76px 1fr 1fr;gap:8px}
+.add-btn{margin-top:6px;width:100%;background:linear-gradient(180deg,#e3b96a,#c99a43);color:#241a05;
+  border:none;border-radius:10px;padding:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:.2s}
+.add-btn:hover{filter:brightness(1.08)}
+.add-btn:active{transform:translateY(1px)}
+.price-match{display:none;font-size:12px;color:var(--green);grid-column:2;margin-top:-4px}
+
+/* ===== 来源速览 ===== */
+.src-list{display:flex;flex-direction:column;gap:6px}
+.src-row{display:flex;align-items:center;gap:8px;font-size:13px}
+.src-row .name{width:64px;color:var(--ink-dim);flex:none}
+.src-row .bar{flex:1;height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden}
+.src-row .bar i{display:block;height:100%;background:linear-gradient(90deg,#c99a43,#eccb82);border-radius:4px;width:0;transition:width .4s}
+.src-row .amt{width:76px;text-align:right;color:var(--gold);font-family:var(--mono);font-weight:700}
+
+/* ===== 明细表 ===== */
+.tbl-wrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;color:var(--ink-faint);font-weight:500;font-size:12px;letter-spacing:.06em;
+  border-bottom:1px solid var(--line2);padding:6px 8px;white-space:nowrap}
+.tbl td{padding:8px;border-bottom:1px solid rgba(255,255,255,.05);white-space:nowrap;vertical-align:middle}
+.tbl tr:hover td{background:rgba(217,178,95,.04)}
+.tbl .amt{color:var(--gold);font-weight:700;font-family:var(--mono)}
+.tbl .src-tag{font-size:11px;color:var(--cyan);border:1px solid rgba(111,157,184,.4);padding:1px 7px;border-radius:20px}
+.tbl .del{cursor:pointer;color:var(--ink-faint);border:none;background:none;font-size:14px;padding:2px 6px;border-radius:6px;transition:.15s}
+.tbl .del:hover{color:var(--red);background:rgba(201,91,74,.12)}
+.tbl tfoot td{border-top:2px solid var(--line);border-bottom:none;font-weight:700;color:var(--gold-hi)}
+.tbl .qty{color:var(--ink-dim)}
+.tbl .note{color:var(--ink-faint);font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.empty{text-align:center;color:var(--ink-faint);padding:34px 10px;font-size:14px;line-height:1.9}
+.empty b{color:var(--gold-dim);font-family:var(--serif)}
+
+/* ===== 图表 ===== */
+.charts{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
+@media (max-width:1000px){.charts{grid-template-columns:1fr}}
+.chart-box{height:260px}
+.chart-nodata{height:260px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:13px}
+
+/* ===== 折叠面板 ===== */
+details.card{padding:0;overflow:hidden}
+details.card>summary{list-style:none;cursor:pointer;padding:14px 18px;font-family:var(--serif);
+  font-weight:700;font-size:15px;letter-spacing:.06em;color:var(--gold);display:flex;align-items:center;gap:8px}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"＋";margin-left:auto;color:var(--ink-faint);font-family:var(--sans)}
+details.card[open]>summary::after{content:"－"}
+details.card .inner{padding:4px 18px 18px;border-top:1px solid var(--line2)}
+.price-edit input{width:76px;background:rgba(255,255,255,.05);border:1px solid var(--line2);border-radius:6px;
+  color:var(--ink);padding:4px 8px;font-size:13px;font-family:var(--mono);outline:none}
+.price-edit input:focus{border-color:var(--gold)}
+.price-edit input.name-in{width:120px}
+.pcat{font-size:11px;color:var(--ink-faint)}
+.add-price{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.add-price select,.add-price input{background:rgba(255,255,255,.05);border:1px solid var(--line2);border-radius:8px;
+  color:var(--ink);padding:7px 10px;font-size:13px;outline:none}
+.add-price input:focus{border-color:var(--gold)}
+.mini-btn{background:rgba(217,178,95,.12);border:1px solid var(--line);color:var(--gold);border-radius:8px;
+  padding:7px 14px;font-size:13px;cursor:pointer;font-family:var(--sans);transition:.2s}
+.mini-btn:hover{background:rgba(217,178,95,.22)}
+.mini-btn.danger{background:rgba(201,91,74,.12);border-color:rgba(201,91,74,.4);color:var(--red)}
+.mini-btn.danger:hover{background:rgba(201,91,74,.22)}
+
+/* ===== 模态 ===== */
+.modal-mask{position:fixed;inset:0;background:rgba(5,8,16,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal-mask.show{display:flex}
+.modal{background:linear-gradient(180deg,#1a2440,#131b30);border:1px solid var(--line);border-radius:16px;
+  padding:22px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h3{font-family:var(--serif);color:var(--gold);font-size:17px;margin-bottom:16px}
+.modal .frow{margin-bottom:12px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+
+/* ===== toast ===== */
+#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#1c2942;
+  border:1px solid var(--line);color:var(--gold-hi);padding:10px 22px;border-radius:30px;font-size:14px;
+  opacity:0;pointer-events:none;transition:.3s;z-index:99;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.dm-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.hint-line{font-size:12px;color:var(--ink-faint);line-height:1.8;margin-top:8px}
+footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);letter-spacing:.1em}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 顶栏 ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="coin" viewBox="0 0 32 32" aria-hidden="true">
+        <defs><linearGradient id="cg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f0d394"/><stop offset="1" stop-color="#c7953a"/>
+        </linearGradient></defs>
+        <circle cx="16" cy="16" r="14" fill="url(#cg)" stroke="#8f6f2f" stroke-width="1"/>
+        <rect x="11.4" y="11.4" width="9.2" height="9.2" rx="1.6" fill="#0d1424"/>
+        <rect x="14.2" y="8" width="3.6" height="16" rx="1.6" fill="#0d1424"/>
+        <rect x="8" y="14.2" width="16" height="3.6" rx="1.6" fill="#0d1424"/>
+      </svg>
+      <div>
+        <h1>梦幻搬砖收益账本</h1>
+        <div class="sub">五开收益统计 · 物品估价 · 数据本地保存</div>
+      </div>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card today">
+        <div class="lab">今日收益</div>
+        <div class="val" id="stToday">0<span style="font-size:13px">万</span></div>
+        <div class="yuan" id="stTodayYuan">≈ 0 元</div>
+      </div>
+      <div class="stat-card">
+        <div class="lab">本周收益</div>
+        <div class="val" id="stWeek">0</div>
+        <div class="yuan" id="stWeekYuan">≈ 0 元</div>
+      </div>
+      <div class="stat-card">
+        <div class="lab">本月收益</div>
+        <div class="val" id="stMonth">0</div>
+        <div class="yuan" id="stMonthYuan">≈ 0 元</div>
+      </div>
+    </div>
+    <button class="icon-btn" id="btnGold">金价设置</button>
+  </header>
+
+  <!-- ===== 主区 ===== -->
+  <div class="main">
+
+    <!-- 左栏 -->
+    <div>
+      <section class="card">
+        <h2>记录一笔物品</h2>
+        <form class="frm" id="addForm" autocomplete="off">
+          <div class="frow">
+            <label>日期</label>
+            <input type="date" id="recDate">
+          </div>
+          <div class="frow">
+            <label>物品</label>
+            <input list="itemList" id="itemName" placeholder="输入名称，自动匹配估价">
+            <div class="price-match" id="priceMatch"></div>
+          </div>
+          <datalist id="itemList"></datalist>
+          <div class="frow inline">
+            <label>单价·万</label>
+            <input type="number" id="itemPrice" step="0.1" min="0" placeholder="如 39">
+            <input type="number" id="itemQty" step="1" min="1" value="1" title="数量">
+          </div>
+          <div class="frow">
+            <label>来源</label>
+            <select id="itemSource"></select>
+          </div>
+          <div class="frow">
+            <label>备注</label>
+            <input id="itemNote" placeholder="可选，如：乌鸡国副本">
+          </div>
+          <button type="submit" class="add-btn">记录这笔 · 计入今日收益</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>今日来源分布</h2>
+        <div class="src-list" id="srcList"></div>
+      </section>
+    </div>
+
+    <!-- 右栏 -->
+    <div>
+      <section class="card">
+        <h2>今日明细 <span class="cnt" id="recCnt"></span></h2>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>时间</th><th>物品</th><th>数量</th><th>单价</th><th>总额·万</th><th>来源</th><th>备注</th><th></th>
+            </tr></thead>
+            <tbody id="todayBody"></tbody>
+            <tfoot><tr><td colspan="4">今日合计</td><td class="amt" id="todayTotal">0</td><td colspan="3" id="todayTotalYuan"></td></tr></tfoot>
+          </table>
+        </div>
+        <div class="empty" id="todayEmpty" style="display:none">
+          <b>今天还没有记录</b><br>刷完抓鬼、副本回来，把物品记一笔<br>表格会自动按估价汇总收益
+        </div>
+      </section>
+
+      <div class="charts">
+        <section class="card">
+          <h2>近 7 天收益趋势</h2>
+          <div class="chart-box" id="chartTrend"></div>
+          <div class="chart-nodata" id="trendEmpty" style="display:none">暂无足够数据，记录几天后这里会出现趋势图</div>
+        </section>
+        <section class="card">
+          <h2>今日来源占比</h2>
+          <div class="chart-box" id="chartSource"></div>
+          <div class="chart-nodata" id="srcEmpty" style="display:none">暂无数据</div>
+        </section>
+      </div>
+
+      <details class="card">
+        <summary>物品价格表 <span class="cnt" id="priceCnt"></span></summary>
+        <div class="inner">
+          <p class="hint-line">内置绍兴兰亭常见行情（单位：万梦幻币），可直接点价格修改，改动实时生效并保存。</p>
+          <div class="tbl-wrap" style="max-height:420px;overflow-y:auto">
+            <table class="tbl price-edit">
+              <thead><tr><th style="width:22%">物品</th><th style="width:14%">类别</th><th style="width:14%">单价·万</th><th></th></tr></thead>
+              <tbody id="priceBody"></tbody>
+            </table>
+          </div>
+          <div class="add-price">
+            <input class="name-in" id="npName" placeholder="新物品名称">
+            <select id="npCat"></select>
+            <input type="number" id="npPrice" step="0.1" min="0" placeholder="单价·万" style="width:90px">
+            <button type="button" class="mini-btn" id="btnAddPrice">添加</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>数据备份</summary>
+        <div class="inner">
+          <div class="dm-actions">
+            <button class="mini-btn" id="btnExport">导出备份</button>
+            <button class="mini-btn" id="btnImport">导入备份</button>
+            <button class="mini-btn danger" id="btnClearToday">清空今日记录</button>
+            <button class="mini-btn danger" id="btnClearAll">清空全部数据</button>
+          </div>
+          <input type="file" id="importFile" accept=".json" style="display:none">
+          <p class="hint-line">数据保存在浏览器本地（localStorage），不会上传。导出备份为 JSON 文件，换电脑时导入即可恢复。清空操作不可撤销，请先导出备份。</p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <footer>梦幻搬砖账本 · 估价为市场参考价，请以实际摆摊成交为准 · 数据仅存于本机</footer>
+</div>
+
+<!-- ===== 金价设置模态 ===== -->
+<div class="modal-mask" id="goldMask">
+  <div class="modal">
+    <h3>金价设置</h3>
+    <div class="frow">
+      <label>多少万</label>
+      <input type="number" id="goldBase" step="100" min="100">
+    </div>
+    <div class="frow">
+      <label>等于多少元</label>
+      <input type="number" id="goldRate" step="0.1" min="0">
+    </div>
+    <p class="hint-line" id="goldHint"></p>
+    <div class="modal-actions">
+      <button class="mini-btn" id="btnGoldCancel">取消</button>
+      <button class="mini-btn" id="btnGoldSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ==================== 常量 ==================== */
+var SRCS=['抓鬼','师门','副本','神器','活动','封妖','厢房','摆摊收购','挖宝','其他'];
+var CATS=['兽决','五宝','宝石','环装','花乐器','材料消耗','杂货'];
+
+/* 内置估价表：名称, 类别, 单价(万梦幻币) —— 绍兴兰亭参考行情，可自行修改 */
+var DEFAULT_PRICES=[
+  ['高偷','兽决',2600],['高神佑','兽决',2400],['高必杀','兽决',2200],
+  ['高连击','兽决',1500],['高吸血','兽决',1500],['高法波','兽决',1100],
+  ['高法爆','兽决',1000],['高魔心','兽决',850],['高法连','兽决',650],
+  ['高夜战','兽决',380],['高强力','兽决',300],['高防御','兽决',260],
+  ['高敏捷','兽决',250],['高隐身','兽决',220],['高幸运','兽决',200],['高驱鬼','兽决',160],
+  ['必杀','兽决',380],['法爆','兽决',260],['法连','兽决',240],['吸血','兽决',260],
+  ['魔心','兽决',230],['连击','兽决',200],['夜战','兽决',180],['偷袭','兽决',170],
+  ['强力','兽决',150],['隐身','兽决',130],['神佑复生','兽决',100],['防御','兽决',90],
+  ['幸运','兽决',70],['敏捷','兽决',60],['感知','兽决',60],['驱鬼','兽决',50],
+  ['毒','兽决',50],['反击','兽决',45],['鬼魂术','兽决',40],['神迹','兽决',40],
+  ['再生','兽决',35],['永恒','兽决',30],['慧根','兽决',50],['冥想','兽决',45],
+  ['金刚石','五宝',850],['定魂珠','五宝',850],['夜光珠','五宝',220],
+  ['龙鳞','五宝',60],['避水珠','五宝',25],['特赦令牌','五宝',1350],
+  ['彩果','杂货',39],['七色果','杂货',39],['超级金柳露','杂货',32],['金柳露','杂货',8],
+  ['摇钱树苗','杂货',70],['海马','杂货',8],['修炼果','杂货',75],['炼兽真经','杂货',130],
+  ['内丹·静岳','杂货',45],['如意丹','杂货',8],['月华露','杂货',8],['天眼通符','杂货',2],
+  ['藏宝图','杂货',3],['夜明珠','杂货',12],['珍珠','杂货',8],
+  ['黑宝石','宝石',14],['月亮石','宝石',12],['舍利子','宝石',12],['红玛瑙','宝石',10],
+  ['太阳石','宝石',8],['光芒石','宝石',7],['翡翠石','宝石',3],['神秘石','宝石',2],
+  ['60级武器','环装',18],['60级防具','环装',12],['70级武器','环装',12],['70级防具','环装',8],
+  ['80级武器','环装',38],['80级防具','环装',24],
+  ['红玫瑰','花乐器',15],['百合','花乐器',4],['康乃馨','花乐器',2],['牡丹','花乐器',2],
+  ['竖琴','花乐器',6],['木鱼','花乐器',5],['编钟','花乐器',5],['笛子','花乐器',5],
+  ['箜篌','花乐器',4],['唢呐','花乐器',3],['琵琶','花乐器',4],
+  ['强化石','材料消耗',5],['百炼精铁','材料消耗',8],['灵石·灵','材料消耗',4]
+];
+
+/* ==================== 状态 ==================== */
+var LS_REC='mh_records', LS_PRI='mh_prices', LS_SET='mh_settings';
+var records=[], prices=[], settings={goldBase:3000,goldRate:218};
+var charts={trend:null,source:null};
+var toastTimer=null;
+
+function load(){
+  var rawRec=localStorage.getItem(LS_REC);
+  try{records=rawRec?JSON.parse(rawRec):[];}catch(e){records=[];}
+  var rawPri=localStorage.getItem(LS_PRI);
+  if(rawPri===null){
+    prices=DEFAULT_PRICES.map(function(p){return {name:p[0],cat:p[1],price:p[2]};});
+    save();
+  }else{
+    try{prices=JSON.parse(rawPri)||[];}catch(e){prices=DEFAULT_PRICES.map(function(p){return {name:p[0],cat:p[1],price:p[2]};});}
+  }
+  try{settings=Object.assign({goldBase:3000,goldRate:218},JSON.parse(localStorage.getItem(LS_SET))||{});}catch(e){}
+}
+function save(){
+  localStorage.setItem(LS_REC,JSON.stringify(records));
+  localStorage.setItem(LS_PRI,JSON.stringify(prices));
+  localStorage.setItem(LS_SET,JSON.stringify(settings));
+}
+
+/* ==================== 工具函数 ==================== */
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},2600);
+}
+function todayStr(){return fmtDate(new Date());}
+function fmtDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function weekStart(d){var day=d.getDay()||7,t=new Date(d);t.setDate(t.getDate()-day+1);return fmtDate(t);}
+function monthStart(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
+function ratio(){return settings.goldRate/settings.goldBase;} /* 元/万 */
+function yuanOf(wan){return wan*ratio();}
+function fmtWan(n){return (Math.round(n*10)/10).toLocaleString('zh-CN',{maximumFractionDigits:1});}
+function fmtYuan(wan){return '≈ '+fmtWan(yuanOf(wan))+' 元';}
+function sumOf(list){return list.reduce(function(s,r){return s+r.qty*r.price;},0);}
+
+/* ==================== DOM 引用 ==================== */
+var el=function(id){return document.getElementById(id);};
+var addForm=el('addForm'), recDate=el('recDate'), itemName=el('itemName'),
+  itemPrice=el('itemPrice'), itemQty=el('itemQty'), itemSource=el('itemSource'),
+  itemNote=el('itemNote'), priceMatch=el('priceMatch'), itemList=el('itemList'),
+  todayBody=el('todayBody'), todayEmpty=el('todayEmpty'), recCnt=el('recCnt'),
+  todayTotal=el('todayTotal'), todayTotalYuan=el('todayTotalYuan'),
+  srcList=el('srcList'), priceBody=el('priceBody'), priceCnt=el('priceCnt'),
+  stToday=el('stToday'), stTodayYuan=el('stTodayYuan'),
+  stWeek=el('stWeek'), stWeekYuan=el('stWeekYuan'),
+  stMonth=el('stMonth'), stMonthYuan=el('stMonthYuan');
+
+/* ==================== 渲染 ==================== */
+function renderStats(){
+  var today=todayStr(), wk=weekStart(new Date()), mo=monthStart(new Date());
+  var sT=sumOf(records.filter(function(r){return r.date===today;}));
+  var sW=sumOf(records.filter(function(r){return r.date>=wk;}));
+  var sM=sumOf(records.filter(function(r){return r.date>=mo;}));
+  stToday.innerHTML=fmtWan(sT)+'<span style="font-size:13px">万</span>';
+  stTodayYuan.textContent=fmtYuan(sT);
+  stWeek.textContent=fmtWan(sW)+'万'; stWeekYuan.textContent=fmtYuan(sW);
+  stMonth.textContent=fmtWan(sM)+'万'; stMonthYuan.textContent=fmtYuan(sM);
+}
+
+function renderDetail(){
+  var rows=records.slice().sort(function(a,b){return a.date===b.date? b.ts-a.ts : (a.date<b.date?1:-1);});
+  recCnt.textContent='共 '+rows.length+' 条';
+  if(!rows.length){todayEmpty.style.display='block';todayBody.innerHTML='';todayTotal.textContent='0';todayTotalYuan.textContent='';return;}
+  todayEmpty.style.display='none';
+  todayBody.innerHTML=rows.map(function(r){
+    return '<tr><td>'+esc(r.date.slice(5))+'</td><td>'+esc(r.item)+'</td><td class="qty">×'+r.qty+
+      '</td><td>'+r.price+'</td><td class="amt">'+fmtWan(r.qty*r.price)+'</td>'+
+      '<td><span class="src-tag">'+esc(r.source)+'</span></td><td class="note">'+esc(r.note||'')+
+      '</td><td><button class="del" data-id="'+r.id+'" title="删除">✕</button></td></tr>';
+  }).join('');
+  var total=sumOf(rows);
+  todayTotal.textContent=fmtWan(total);
+  todayTotalYuan.textContent='≈ '+fmtWan(yuanOf(total))+' 元（全部记录合计）';
+}
+
+function renderSources(){
+  var today=todayStr(), by={}, total=0;
+  records.forEach(function(r){if(r.date!==today)return;var v=r.qty*r.price;by[r.source]=(by[r.source]||0)+v;total+=v;});
+  var names=Object.keys(by).sort(function(a,b){return by[b]-by[a];});
+  if(!names.length){srcList.innerHTML='<div class="empty" style="padding:18px 0">今日暂无记录</div>';return;}
+  srcList.innerHTML=names.map(function(n){
+    var pct=total?Math.round(by[n]/total*100):0;
+    return '<div class="src-row"><span class="name">'+esc(n)+'</span>'+
+      '<span class="bar"><i style="width:'+pct+'%"></i></span>'+
+      '<span class="amt">'+fmtWan(by[n])+'万</span></div>';
+  }).join('');
+}
+
+function renderTrend(){
+  var days=[],vals=[],i,d,s;
+  for(i=6;i>=0;i--){d=new Date();d.setDate(d.getDate()-i);s=fmtDate(d);
+    days.push(s.slice(5).replace('-','/'));vals.push(sumOf(records.filter(function(r){return r.date===s;})));}
+  var emptyEl=el('trendEmpty'), box=el('chartTrend');
+  var has=vals.some(function(v){return v>0;});
+  if(!window.echarts){emptyEl.style.display='block';emptyEl.textContent='图表库加载失败，请检查网络后刷新';return;}
+  if(!has){emptyEl.style.display='block';emptyEl.textContent='暂无足够数据，记录几天后这里会出现趋势图';if(charts.trend){charts.trend.dispose();charts.trend=null;}return;}
+  emptyEl.style.display='none';
+  if(!charts.trend){charts.trend=echarts.init(box);}
+  charts.trend.setOption({
+    grid:{left:46,right:14,top:26,bottom:26},
+    tooltip:{trigger:'axis',backgroundColor:'rgba(18,25,45,.95)',borderColor:'rgba(217,178,95,.4)',
+      textStyle:{color:'#efe6cf',fontSize:12},
+      formatter:function(ps){var p=ps[0],v=p.value;return p.axisValueLabel+'<br/>收益：'+fmtWan(v)+' 万<br/>'+fmtYuan(v);}},
+    xAxis:{type:'category',data:days,boundaryGap:true,
+      axisLine:{lineStyle:{color:'rgba(255,255,255,.15)'}},axisTick:{show:false},
+      axisLabel:{color:'#a89e85',fontSize:11}},
+    yAxis:{type:'value',name:'万',nameTextStyle:{color:'#6d6554'},
+      axisLabel:{color:'#a89e85',fontSize:11},splitLine:{lineStyle:{color:'rgba(255,255,255,.06)'}}},
+    series:[{type:'bar',data:vals,barWidth:'46%',
+      itemStyle:{borderRadius:[5,5,0,0],color:new echarts.graphic.LinearGradient(0,0,0,1,
+        [{offset:0,color:'#eccb82'},{offset:1,color:'#c99a43'}])}}]
+  },true);
+}
+
+function renderSourceChart(){
+  var today=todayStr(), by={};
+  records.forEach(function(r){if(r.date!==today)return;var v=r.qty*r.price;by[r.source]=(by[r.source]||0)+v;});
+  var data=Object.keys(by).map(function(k){return {name:k,value:by[k]};});
+  var emptyEl=el('srcEmpty'), box=el('chartSource');
+  if(!window.echarts){emptyEl.style.display='block';emptyEl.textContent='图表库加载失败，请检查网络后刷新';return;}
+  if(!data.length){emptyEl.style.display='block';if(charts.source){charts.source.dispose();charts.source=null;}return;}
+  emptyEl.style.display='none';
+  if(!charts.source){charts.source=echarts.init(box);}
+  charts.source.setOption({
+    color:['#d9b25f','#c95b4a','#5f8f7a','#6f9db8','#a98a5a','#8a6fb8','#c98a4a','#7a9d8a','#b8a25f','#9db8cf'],
+    tooltip:{trigger:'item',backgroundColor:'rgba(18,25,45,.95)',borderColor:'rgba(217,178,95,.4)',
+      textStyle:{color:'#efe6cf',fontSize:12},formatter:function(p){return p.name+'：'+fmtWan(p.value)+' 万（'+p.percent+'%）<br/>'+fmtYuan(p.value);}},
+    legend:{bottom:0,textStyle:{color:'#a89e85',fontSize:11},icon:'circle',itemWidth:9,itemHeight:9},
+    series:[{type:'pie',radius:['44%','68%'],center:['50%','44%'],
+      itemStyle:{borderColor:'#141d33',borderWidth:2},
+      label:{color:'#efe6cf',fontSize:11,formatter:'{b} {d}%'},
+      labelLine:{lineStyle:{color:'rgba(255,255,255,.25)'}},
+      data:data}]
+  },true);
+}
+
+function refreshDatalist(){
+  itemList.innerHTML=prices.map(function(p){
+    return '<option value="'+esc(p.name)+'">'+esc(p.cat)+' · '+p.price+'万</option>';
+  }).join('');
+}
+
+function renderPrice(){
+  var sorted=prices.slice().sort(function(a,b){
+    var ca=CATS.indexOf(a.cat),cb=CATS.indexOf(b.cat);
+    return (ca<0?99:ca)-(cb<0?99:cb) || (a.name<b.name?-1:1);
+  });
+  priceCnt.textContent='共 '+sorted.length+' 项';
+  priceBody.innerHTML=sorted.map(function(p,i){
+    return '<tr><td><input class="name-in" value="'+esc(p.name)+'" data-i="'+i+'" data-k="name"></td>'+
+      '<td><select data-i="'+i+'" data-k="cat">'+CATS.map(function(c){
+        return '<option value="'+esc(c)+'"'+(c===p.cat?' selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select></td>'+
+      '<td><input type="number" step="0.1" min="0" value="'+p.price+'" data-i="'+i+'" data-k="price"></td>'+
+      '<td><button class="del" data-delp="'+i+'" title="删除">✕</button></td></tr>';
+  }).join('');
+}
+
+/* ==================== 事件绑定 ==================== */
+function bindEvents(){
+  recDate.value=todayStr();
+  itemSource.innerHTML=SRCS.map(function(s){return '<option>'+s+'</option>';}).join('');
+  el('npCat').innerHTML=CATS.map(function(c){return '<option>'+c+'</option>';}).join('');
+
+  addForm.addEventListener('submit',function(e){
+    e.preventDefault();
+    var date=recDate.value||todayStr();
+    var name=itemName.value.trim();
+    if(!name){toast('请先输入物品名称');itemName.focus();return;}
+    var price=parseFloat(itemPrice.value);
+    if(isNaN(price)){var m=prices.filter(function(p){return p.name===name;})[0];if(m)price=m.price;}
+    if(isNaN(price)||price<0){toast('请输入有效单价（万）');itemPrice.focus();return;}
+    var qty=Math.max(1,parseInt(itemQty.value,10)||1);
+    records.push({id:Date.now()+Math.random().toString(36).slice(2,6),
+      date:date,item:name,qty:qty,price:price,source:itemSource.value,note:itemNote.value.trim(),ts:Date.now()});
+    save();renderAll();
+    toast('已记录 '+name+' ×'+qty+' · '+fmtWan(price*qty)+'万（'+fmtYuan(price*qty)+'）');
+    itemName.value='';itemPrice.value='';itemQty.value='1';itemNote.value='';
+    priceMatch.style.display='none';
+    itemName.focus();
+  });
+
+  itemName.addEventListener('input',function(){
+    var v=itemName.value.trim();
+    if(!v){priceMatch.style.display='none';return;}
+    var m=prices.filter(function(p){return p.name.indexOf(v)>-1||v.indexOf(p.name)>-1;});
+    if(m.length===1){itemPrice.value=m[0].price;
+      priceMatch.style.display='block';
+      priceMatch.textContent='匹配估价：'+m[0].name+' · '+m[0].cat+' · '+m[0].price+'万/个';
+    }else if(m.length>1){
+      priceMatch.style.display='block';
+      priceMatch.textContent='匹配 '+m.length+' 项，请确认或手动改单价';
+    }else{priceMatch.style.display='none';}
+  });
+
+  todayBody.addEventListener('click',function(e){
+    var b=e.target.closest('.del');
+    if(!b||!b.dataset.id)return;
+    var i=records.findIndex(function(r){return r.id===b.dataset.id;});
+    if(i>-1){records.splice(i,1);save();renderAll();toast('已删除该条记录');}
+  });
+
+  priceBody.addEventListener('change',function(e){
+    var t=e.target,i=t.dataset.i,k=t.dataset.k,val=t.value;
+    if(!prices[i])return;
+    if(k==='price'){val=parseFloat(val);if(isNaN(val)||val<0)val=prices[i].price;else prices[i].price=val;}
+    else if(k==='name'){if(!val.trim())return;prices[i].name=val.trim();}
+    else if(k==='cat'){prices[i].cat=val;}
+    save();refreshDatalist();
+  });
+  priceBody.addEventListener('click',function(e){
+    var b=e.target.closest('.del');
+    if(!b||b.dataset.delp===undefined)return;
+    var i=parseInt(b.dataset.delp,10);
+    if(prices[i]){prices.splice(i,1);save();renderPrice();refreshDatalist();toast('已从估价表删除');}
+  });
+
+  el('btnAddPrice').addEventListener('click',function(){
+    var n=el('npName').value.trim(),c=el('npCat').value,p=parseFloat(el('npPrice').value);
+    if(!n){toast('请输入物品名称');return;}
+    if(isNaN(p)||p<0){toast('请输入有效单价');return;}
+    if(prices.some(function(x){return x.name===n;})){toast('估价表已有「'+n+'」，直接改价格即可');return;}
+    prices.push({name:n,cat:c,price:p});
+    save();renderPrice();refreshDatalist();
+    el('npName').value='';el('npPrice').value='';
+    toast('已添加 '+n+' · '+p+'万');
+  });
+
+  el('btnGold').addEventListener('click',function(){
+    el('goldBase').value=settings.goldBase;
+    el('goldRate').value=settings.goldRate;
+    el('goldHint').textContent='当前换算：'+settings.goldBase+'万 = '+settings.goldRate+'元（'+ratio().toFixed(4)+'元/万）';
+    el('goldMask').classList.add('show');
+  });
+  el('btnGoldCancel').addEventListener('click',function(){el('goldMask').classList.remove('show');});
+  el('goldMask').addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');});
+  el('btnGoldSave').addEventListener('click',function(){
+    var b=parseFloat(el('goldBase').value),r=parseFloat(el('goldRate').value);
+    if(isNaN(b)||b<=0||isNaN(r)||r<=0){toast('金价参数无效');return;}
+    settings.goldBase=b;settings.goldRate=r;save();renderAll();
+    el('goldMask').classList.remove('show');
+    toast('金价已更新：'+b+'万 = '+r+'元');
+  });
+
+  el('btnExport').addEventListener('click',function(){
+    var blob=new Blob([JSON.stringify({records:records,prices:prices,settings:settings,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+    var a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='梦幻搬砖备份_'+todayStr()+'.json';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
+    toast('备份已导出');
+  });
+  el('btnImport').addEventListener('click',function(){el('importFile').click();});
+  el('importFile').addEventListener('change',function(){
+    var f=this.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var d=JSON.parse(rd.result);
+        if(!d||!Array.isArray(d.records)){toast('备份文件格式不正确');return;}
+        records=d.records;
+        if(Array.isArray(d.prices)&&d.prices.length)prices=d.prices;
+        if(d.settings)settings=Object.assign(settings,d.settings);
+        save();renderAll();
+        toast('导入成功：'+records.length+' 条记录');
+      }catch(err){toast('读取备份失败：'+err.message);}
+    };
+    rd.readAsText(f);
+    this.value='';
+  });
+  el('btnClearToday').addEventListener('click',function(){
+    if(!confirm('确定清空今天的全部记录吗？此操作不可撤销。'))return;
+    var t=todayStr(),n=records.length;
+    records=records.filter(function(r){return r.date!==t;});
+    save();renderAll();
+    toast('已清空今日 '+(n-records.length)+' 条记录');
+  });
+  el('btnClearAll').addEventListener('click',function(){
+    if(!confirm('确定清空所有记录吗？建议先导出备份。此操作不可撤销。'))return;
+    records=[];save();renderAll();
+    toast('已清空全部记录');
+  });
+
+  window.addEventListener('resize',function(){
+    if(charts.trend)charts.trend.resize();
+    if(charts.source)charts.source.resize();
+  });
+}
+
+function renderAll(){
+  renderStats();renderDetail();renderSources();renderTrend();renderSourceChart();
+  refreshDatalist();renderPrice();
+}
+
+/* ==================== 启动 ==================== */
+load();
+bindEvents();
+renderAll();
+
+/* ECharts 就绪钩子：动态脚本加载完成后补渲染图表（幂等，重复调用安全） */
+window.__chartsReady=function(){
+  if(window.echarts){renderTrend();renderSourceChart();}
+};
+})();
+</script>
+</body>
+</html>

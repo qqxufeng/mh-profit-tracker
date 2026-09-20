@@ -1,0 +1,54 @@
+# 梦幻搬砖收益账本
+
+一个专为《梦幻西游》五开搬砖玩家设计的**每日收益统计工具**。纯前端、单文件、无需安装，数据全部保存在浏览器本地。
+
+## 功能
+
+- **物品记录**：记录日期、物品、数量、来源（抓鬼 / 师门 / 副本 / 神器 / 活动 / 封妖 / 厢房 / 摆摊收购 / 挖宝 / 其他）
+- **自动估价**：内置 89 项常见搬砖物品行情（兽决、五宝、宝石、环装、花乐器、材料等），输入名称自动匹配单价，价格表可自由增删改
+- **收益统计**：今日 / 本周 / 本月收益卡片，梦幻币与人民币（按金价）双显示
+- **数据可视化**：近 7 天收益趋势柱状图、今日来源占比环形图（ECharts）
+- **本地保存**：所有记录存于浏览器 localStorage，不上传任何服务器
+- **数据备份**：一键导出 / 导入 JSON 备份，换电脑不丢数据
+
+## 使用
+
+1. 打开 `index.html`（或部署后的在线地址）
+2. 在左侧表单输入物品名称，单价自动匹配，选择数量与来源，点击「记录这笔」
+3. 顶部实时显示今日 / 本周 / 本月收益
+4. 点「物品价格表」可查看 / 修改估价（行情随区服波动，以实际摆摊成交为准）
+5. 点「金价设置」可调整梦幻币兑人民币比例（默认 3000万 = 218元）
+
+## 部署到 GitHub Pages（免费分享给更多人）
+
+> 本工具是纯静态单文件，部署后每个访问者的数据存在各自的浏览器里，互不干扰。
+
+**方式一：网页直接上传（最简单）**
+
+1. 在 GitHub 上新建仓库（`New repository`），建议仓库名 `mh-profit-tracker`，可见性选 Public（公开分享）或 Private
+2. 仓库创建后点 `Add file → Upload files`，把本目录下的 `index.html`、`README.md`、`LICENSE` 一起拖进去，Commit
+3. 进入仓库 `Settings → Pages`，Source 选 `Deploy from a branch`，Branch 选 `main` 和 `/ (root)`，点 Save
+4. 等 1~2 分钟，页面会显示访问地址 `https://你的用户名.github.io/mh-profit-tracker/`
+
+**方式二：命令行推送（已有 Git 环境）**
+
+```bash
+cd mh-profit-tracker
+git init
+git add .
+git commit -m "init: 梦幻搬砖收益账本"
+git branch -M main
+git remote add origin https://github.com/你的用户名/mh-profit-tracker.git
+git push -u origin main
+```
+
+推送后按方式一的第 3 步开启 Pages 即可。
+
+## 隐私说明
+
+- 所有数据（记录、估价表、金价设置）只存在**访问者自己的浏览器** localStorage 中
+- 本项目不收集、不上传任何用户数据，服务器上只有静态页面文件
+
+## License
+
+MIT License — 可自由使用、修改、再分发。
