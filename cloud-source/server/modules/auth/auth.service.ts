@@ -10,7 +10,11 @@ import * as jwt from 'jsonwebtoken';
 import { mhUser } from '@server/database/schema';
 import type { MhUser } from '@shared/api.interface';
 
-const JWT_SECRET = process.env.MH_JWT_SECRET || 'mh-ledger-jwt-secret-dev-change-me';
+// JWT 密钥只从环境变量读取，公开仓库不落任何默认密钥
+const JWT_SECRET = process.env.MH_JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('缺少环境变量 MH_JWT_SECRET，请配置后启动（生产环境必须使用强随机密钥）');
+}
 const JWT_EXPIRES_IN = '30d';
 const SALT_ROUNDS = 10;
 

@@ -65,12 +65,13 @@ cloud-source/
 
 1. 准备 PostgreSQL 数据库
 2. 按 `server/database/schema.ts` 建表（drizzle-kit push/migrate）
-3. 设置环境变量：`MH_JWT_SECRET`（JWT 密钥，生产必改）
+3. 设置环境变量：`MH_JWT_SECRET`（JWT 密钥，**必填**，无默认值，生产必须使用强随机密钥）
 4. 初始化 `mh_market_reference` 行情数据（运营脚本维护，应用端只读）
 5. 启动 NestJS 后端 + React 前端构建产物
 
 ## 安全提示
 
-- `server/modules/auth/auth.service.ts` 中的 `MH_JWT_SECRET` 默认值仅用于开发，
-  **生产环境必须通过环境变量覆盖**
+- `server/modules/auth/auth.service.ts` 的 `MH_JWT_SECRET` **只从环境变量读取，仓库不含任何默认密钥**，
+  未配置时应用拒绝启动（安全优先）
+- 本仓库不包含任何真实管理员账号、用户名或密码；管理员身份在生产环境通过数据库/环境变量配置
 - 记账/同步接口均按 `userId` 过滤，防止越权读取他人数据
