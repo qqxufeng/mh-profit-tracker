@@ -52,8 +52,8 @@ export class AdminController {
 
   @Get('users')
   async listUsers(
-    @Query('page') page: string,
-    @Query('pageSize') pageSize: string,
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '20',
     @Query('search') search?: string,
   ): Promise<AdminUserListResponse> {
     const pageNum: number = parseInt(page, 10);

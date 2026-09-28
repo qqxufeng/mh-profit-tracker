@@ -95,7 +95,7 @@ export const adminApi = {
     request<AdminOverviewStats>('/api/admin/overview', 'GET'),
   listUsers: (params: { page?: number; pageSize?: number; search?: string }) => {
     const search = new URLSearchParams();
-    if (params.page) search.set('page', String(params.page));
+    search.set('page', String(params.page ?? 1));
     if (params.pageSize) search.set('pageSize', String(params.pageSize));
     if (params.search) search.set('search', params.search);
     return request<AdminUserListResponse>(`/api/admin/users?${search.toString()}`, 'GET');
