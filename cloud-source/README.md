@@ -20,6 +20,7 @@
 6. **每日金价**：金价自动记入当日历史，可补录
 7. **会员（本期免费）**：登录即会员标识，可看全区服物价金价参考（`mh_market_reference` 只读表，运营维护）
 8. **数据备份**：JSON 导出/导入
+9. **后台管理**：数据概览、用户管理（搜索/设VIP/设管理员/重置密码/删除，均带确认）、行情管理（区服与物价增删改查）；接口经 AdminGuard 鉴权，非管理员 403
 
 ## 数据同步去重策略（server/modules/sync）
 
@@ -32,7 +33,7 @@
 
 | 表 | 说明 |
 | --- | --- |
-| mh_user | 用户（isVip 会员标识） |
+| mh_user | 用户（isVip 会员标识、isAdmin 管理员标识） |
 | mh_server | 服务器（金价基数/汇率） |
 | mh_record | 记账记录（kind: item/in/out） |
 | mh_price | 估价表 |
@@ -50,11 +51,12 @@ cloud-source/
 │       ├── auth/                           # 认证：service / guard / controller（完整）
 │       ├── records/                        # 记账：controller / service（完整）
 │       ├── sync/                           # 云同步：controller / service（完整）
-│       └── market/                         # 行情参考：controller / service（完整）
+│       ├── market/                         # 行情参考：controller / service（完整）
+│       └── admin/                          # 后台管理：module / guard / controller / service（完整）
 └── client/src/
-    ├── api/index.ts                        # 全部后端 API 封装（完整）
+    ├── api/index.ts                        # 全部后端 API 封装（含 adminApi，完整）
     ├── hooks/                              # useAuth / useLocalStore / useLedgerData（完整）
-    └── pages/                              # LoginPage / HomePage / RecordForm / MarketPage（完整）
+    └── pages/                              # LoginPage / HomePage / RecordForm / MarketPage / AdminPage（完整）
 ```
 
 ## 部署说明（自托管时）

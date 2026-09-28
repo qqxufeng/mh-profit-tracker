@@ -9,6 +9,8 @@ import type {
   AuthResponse, RegisterRequest, LoginRequest,
   FullSyncData, SyncResponse,
   StatsSummary, SourceDistributionItem, TrendPoint,
+  AdminOverviewStats, AdminUserItem, AdminUserListResponse,
+  AdminMarketServerItem, AdminMarketCreateRequest, AdminMarketUpdateRequest,
 } from '@shared/api.interface';
 
 async function request<T>(url: string, method: string, data?: unknown): Promise<T> {
@@ -85,4 +87,35 @@ export const syncApi = {
   fullSync: (data: FullSyncData) =>
     request<SyncResponse>('/api/sync/full', 'POST', data),
   pull: () => request<SyncResponse>('/api/sync/pull', 'GET'),
+};
+
+// === 后台管理（仅管理员可用，403 保护） ===
+export const adminApi = {
+  overview: () =>
+    request<AdminOverviewStats>('/api/admin/overview', 'GET'),
+  listUsers: (params: { page?: number; pageSize?: number; search?: string }) => {
+    const search = new URLSearchParams();
+    if (params.page) search.set('page', String(params.page));
+    if (params.pageSize) search.set('pageSize', String(params.pageSize));
+    if (params.search) search.set('search', params.search);
+    return request<AdminUserListResponse>(`/api/admin/users?${search.toString()}`, 'GET');
+  },
+  setUserVip: (id: string, isVip: boolean) =>
+    request<AdminUserItem>(`/api/admin/users/${id}/vip`, 'PATCH', { isVip }),
+  setUserAdmin: (id: string, isAdmin: boolean) =>
+    request<AdminUserItem>(`/api/admin/users/${id}/admin`, 'PATCH', { isAdmin }),
+  resetUserPassword: (id: string, newPassword: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${id}/password`, 'PATCH', { newPassword }),
+  deleteUser: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/users/${id}`, 'DELETE'),
+  listMarketServers: () =>
+    request<AdminMarketServerItem[]>('/api/admin/market/servers', 'GET'),
+  getMarketServer: (id: string) =>
+    request<MarketReference>(`/api/admin/market/servers/${id}`, 'GET'),
+  createMarketServer: (data: AdminMarketCreateRequest) =>
+    request<MarketReference>('/api/admin/market/servers', 'POST', data),
+  updateMarketServer: (id: string, data: AdminMarketUpdateRequest) =>
+    request<MarketReference>(`/api/admin/market/servers/${id}`, 'PATCH', data),
+  deleteMarketServer: (id: string) =>
+    request<{ ok: boolean }>(`/api/admin/market/servers/${id}`, 'DELETE'),
 };

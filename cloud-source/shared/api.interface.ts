@@ -6,6 +6,7 @@ export interface MhUser {
   id: string;
   username: string;
   isVip: boolean;
+  isAdmin?: boolean;
   lastSyncAt?: string;
 }
 
@@ -112,4 +113,52 @@ export interface SyncResponse {
   prices: MhPrice[];
   goldHistory: MhGoldHistory[];
   mergedCount: number;
+}
+
+// === 后台管理（admin）类型 ===
+export interface AdminOverviewStats {
+  totalUsers: number;
+  todayNewUsers: number;
+  totalRecords: number;
+  totalPrices: number;
+  totalGoldHistory: number;
+  activeUsers7d: number;
+}
+
+export interface AdminUserItem {
+  id: string;
+  username: string;
+  isVip: boolean;
+  isAdmin: boolean;
+  createdAt: string;
+  lastSyncAt: string | null;
+  recordCount: number;
+}
+
+export interface AdminUserListResponse {
+  items: AdminUserItem[];
+  total: number;
+}
+
+export interface AdminMarketServerItem {
+  id: string;
+  serverName: string;
+  goldBase: number;
+  goldRate: number;
+  itemCount: number;
+  updatedAt: string;
+}
+
+export interface AdminMarketCreateRequest {
+  serverName: string;
+  goldBase: number;
+  goldRate: number;
+  items: { name: string; category: string; price: number }[];
+}
+
+export interface AdminMarketUpdateRequest {
+  serverName?: string;
+  goldBase?: number;
+  goldRate?: number;
+  items?: { name: string; category: string; price: number }[];
 }

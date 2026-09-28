@@ -41,6 +41,7 @@ function toMhUser(row: typeof mhUser.$inferSelect): MhUser {
     id: row.id,
     username: row.username,
     isVip: row.isVip,
+    isAdmin: row.isAdmin,
     lastSyncAt: row.lastSyncAt ? row.lastSyncAt.toISOString() : undefined,
   };
 }

@@ -18,6 +18,7 @@ export const mhUser = pgTable('mh_user', {
   username: varchar('username', { length: 64 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   isVip: boolean('is_vip').notNull().default(true),
+  isAdmin: boolean('is_admin').notNull().default(false),
   lastSyncAt: customTimestamptz('last_sync_at', { precision: 3 }),
   createdAt: customTimestamptz('_created_at', { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: customTimestamptz('_updated_at', { precision: 3 }).notNull().default(sql`CURRENT_TIMESTAMP`),
