@@ -123,6 +123,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tbl td{padding:8px;border-bottom:1px solid rgba(255,255,255,.05);white-space:nowrap;vertical-align:middle}
 .tbl tr:hover td{background:rgba(217,178,95,.04)}
 .tbl .amt{color:var(--gold);font-weight:700;font-family:var(--mono)}
+.tbl .amt.in{color:var(--green)}
+.tbl .amt.out{color:var(--red)}
+.tbl .kind-tag{font-size:11px;padding:1px 7px;border-radius:20px;white-space:nowrap}
+.tbl .kind-tag.it{color:var(--cyan);border:1px solid rgba(111,157,184,.4)}
+.tbl .kind-tag.in{color:var(--green);border:1px solid rgba(95,143,122,.5)}
+.tbl .kind-tag.out{color:var(--red);border:1px solid rgba(201,91,74,.5)}
 .tbl .src-tag{font-size:11px;color:var(--cyan);border:1px solid rgba(111,157,184,.4);padding:1px 7px;border-radius:20px}
 .tbl .del{cursor:pointer;color:var(--ink-faint);border:none;background:none;font-size:14px;padding:2px 6px;border-radius:6px;transition:.15s}
 .tbl .del:hover{color:var(--red);background:rgba(201,91,74,.12)}
@@ -231,22 +237,34 @@ footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);l
     <!-- 左栏 -->
     <div>
       <section class="card">
-        <h2>记录一笔物品</h2>
+        <h2>记录一笔收益 / 支出</h2>
         <form class="frm" id="addForm" autocomplete="off">
           <div class="frow">
             <label>日期</label>
             <input type="date" id="recDate">
           </div>
           <div class="frow">
+            <label>类型</label>
+            <select id="recKind">
+              <option value="item">物品（估价入账）</option>
+              <option value="in">金币收入（现金入账）</option>
+              <option value="out">金币支出（现金花销）</option>
+            </select>
+          </div>
+          <div class="frow" id="rowItem">
             <label>物品</label>
             <input list="itemList" id="itemName" placeholder="输入名称，自动匹配估价">
             <div class="price-match" id="priceMatch"></div>
           </div>
           <datalist id="itemList"></datalist>
-          <div class="frow inline">
+          <div class="frow inline" id="rowPriceQty">
             <label>单价·万</label>
             <input type="number" id="itemPrice" step="0.1" min="0" placeholder="如 39">
             <input type="number" id="itemQty" step="1" min="1" value="1" title="数量">
+          </div>
+          <div class="frow" id="rowGoldAmt" style="display:none">
+            <label>金额·万</label>
+            <input type="number" id="goldAmt" step="0.1" min="0" placeholder="如 300">
           </div>
           <div class="frow">
             <label>来源</label>
@@ -254,9 +272,9 @@ footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);l
           </div>
           <div class="frow">
             <label>备注</label>
-            <input id="itemNote" placeholder="可选，如：乌鸡国副本">
+            <input id="itemNote" placeholder="可选，如：乌鸡国副本 / 买装备">
           </div>
-          <button type="submit" class="add-btn">记录这笔 · 计入今日收益</button>
+          <button type="submit" class="add-btn" id="addBtnText">记录这笔 · 计入今日收益</button>
         </form>
       </section>
 
@@ -273,14 +291,17 @@ footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);l
         <div class="tbl-wrap">
           <table class="tbl">
             <thead><tr>
-              <th>时间</th><th>物品</th><th>数量</th><th>单价</th><th>总额·万</th><th>来源</th><th>备注</th><th></th>
+              <th>时间</th><th>类型</th><th>物品/用途</th><th>数量</th><th>单价</th><th>金额·万</th><th>来源</th><th>备注</th><th></th>
             </tr></thead>
             <tbody id="todayBody"></tbody>
-            <tfoot><tr><td colspan="4">今日合计</td><td class="amt" id="todayTotal">0</td><td colspan="3" id="todayTotalYuan"></td></tr></tfoot>
+            <tfoot>
+              <tr><td colspan="5">今日合计（净值）</td><td class="amt" id="todayTotal">0</td><td colspan="3" id="todayTotalYuan"></td></tr>
+              <tr id="goldNetRow" style="display:none"><td colspan="5">今日金币收支</td><td class="amt" id="todayGoldNet">0</td><td colspan="3" id="todayGoldBreak" style="color:var(--ink-dim);font-size:12px"></td></tr>
+            </tfoot>
           </table>
         </div>
         <div class="empty" id="todayEmpty" style="display:none">
-          <b>今天还没有记录</b><br>刷完抓鬼、副本回来，把物品记一笔<br>表格会自动按估价汇总收益
+          <b>今天还没有记录</b><br>刷完抓鬼、副本回来，把物品记一笔<br>卖金、买装备、点修的花销也可以记金币收支
         </div>
       </section>
 
@@ -401,6 +422,9 @@ footer{margin-top:20px;text-align:center;font-size:12px;color:var(--ink-faint);l
 /* ==================== 常量 ==================== */
 var SRCS=['抓鬼','师门','副本','神器','活动','封妖','厢房','摆摊收购','挖宝','其他'];
 var CATS=['兽决','五宝','宝石','环装','花乐器','材料消耗','杂货'];
+/* 金币收支来源 */
+var GSRCS_IN=['抓鬼现金','师门现金','副本现金','神器现金','活动现金','摆摊出售','卖菜出金','卖装备','其他'];
+var GSRCS_OUT=['点技能','点修炼','买装备','买宝宝','药品消耗','修装备','副本放旗','其他'];
 
 /* 内置估价表：名称, 类别, 单价(万梦幻币) —— 绍兴兰亭参考行情，可自行修改 */
 var DEFAULT_PRICES=[
@@ -495,15 +519,22 @@ function ratio(){return settings.goldRate/settings.goldBase;} /* 元/万 */
 function yuanOf(wan){return wan*ratio();}
 function fmtWan(n){return (Math.round(n*10)/10).toLocaleString('zh-CN',{maximumFractionDigits:1});}
 function fmtYuan(wan){return '≈ '+fmtWan(yuanOf(wan))+' 元';}
-function sumOf(list){return list.reduce(function(s,r){return s+r.qty*r.price;},0);}
+function sumOf(list){return list.reduce(function(s,r){
+  if(r.kind==='in')return s+r.price;      /* 金币收入 */
+  if(r.kind==='out')return s-r.price;     /* 金币支出 */
+  return s+r.qty*r.price;                 /* 物品 */
+},0);}
 
 /* ==================== DOM 引用 ==================== */
 var el=function(id){return document.getElementById(id);};
-var addForm=el('addForm'), recDate=el('recDate'), itemName=el('itemName'),
-  itemPrice=el('itemPrice'), itemQty=el('itemQty'), itemSource=el('itemSource'),
+var addForm=el('addForm'), recDate=el('recDate'), recKind=el('recKind'),
+  rowItem=el('rowItem'), rowPriceQty=el('rowPriceQty'), rowGoldAmt=el('rowGoldAmt'),
+  goldAmt=el('goldAmt'), addBtnText=el('addBtnText'),
+  itemName=el('itemName'), itemPrice=el('itemPrice'), itemQty=el('itemQty'), itemSource=el('itemSource'),
   itemNote=el('itemNote'), priceMatch=el('priceMatch'), itemList=el('itemList'),
   todayBody=el('todayBody'), todayEmpty=el('todayEmpty'), recCnt=el('recCnt'),
   todayTotal=el('todayTotal'), todayTotalYuan=el('todayTotalYuan'),
+  goldNetRow=el('goldNetRow'), todayGoldNet=el('todayGoldNet'), todayGoldBreak=el('todayGoldBreak'),
   srcList=el('srcList'), priceBody=el('priceBody'), priceCnt=el('priceCnt'),
   stToday=el('stToday'), stTodayYuan=el('stTodayYuan'),
   stWeek=el('stWeek'), stWeekYuan=el('stWeekYuan'),
@@ -527,22 +558,40 @@ function renderStats(){
 function renderDetail(){
   var rows=records.slice().sort(function(a,b){return a.date===b.date? b.ts-a.ts : (a.date<b.date?1:-1);});
   recCnt.textContent='共 '+rows.length+' 条';
-  if(!rows.length){todayEmpty.style.display='block';todayBody.innerHTML='';todayTotal.textContent='0';todayTotalYuan.textContent='';return;}
+  if(!rows.length){todayEmpty.style.display='block';todayBody.innerHTML='';todayTotal.textContent='0';todayTotalYuan.textContent='';
+    goldNetRow.style.display='none';return;}
   todayEmpty.style.display='none';
   todayBody.innerHTML=rows.map(function(r){
-    return '<tr><td>'+esc(r.date.slice(5))+'</td><td>'+esc(r.item)+'</td><td class="qty">×'+r.qty+
-      '</td><td>'+r.price+'</td><td class="amt">'+fmtWan(r.qty*r.price)+'</td>'+
+    var isIn=r.kind==='in', isOut=r.kind==='out';
+    var tag=isIn?'<span class="kind-tag in">金币收入</span>':(isOut?'<span class="kind-tag out">金币支出</span>':'<span class="kind-tag it">物品</span>');
+    var qtyCell=isIn||isOut?'—':'<span class="qty">×'+r.qty+'</span>';
+    var amt=isIn||isOut?r.price:r.qty*r.price;
+    var amtCls=isIn?' in':(isOut?' out':'');
+    return '<tr><td>'+esc(r.date.slice(5))+'</td><td>'+tag+'</td><td>'+esc(r.item)+'</td><td>'+qtyCell+
+      '</td><td>'+r.price+'</td><td class="amt'+amtCls+'">'+(isOut?'-':'')+fmtWan(amt)+'</td>'+
       '<td><span class="src-tag">'+esc(r.source)+'</span></td><td class="note">'+esc(r.note||'')+
       '</td><td><button class="del" data-id="'+r.id+'" title="删除">✕</button></td></tr>';
   }).join('');
   var total=sumOf(rows);
   todayTotal.textContent=fmtWan(total);
-  todayTotalYuan.textContent='≈ '+fmtWan(yuanOf(total))+' 元（全部记录合计）';
+  todayTotalYuan.textContent='≈ '+fmtWan(yuanOf(total))+' 元（物品+金币收支净值）';
+  /* 今日金币收支汇总行 */
+  var gin=0,gout=0;
+  rows.forEach(function(r){if(r.kind==='in')gin+=r.price;else if(r.kind==='out')gout+=r.price;});
+  if(gin||gout){
+    goldNetRow.style.display='';
+    todayGoldNet.textContent=fmtWan(gin-gout);
+    todayGoldBreak.textContent='收入 +'+fmtWan(gin)+'万 · 支出 -'+fmtWan(gout)+'万';
+  }else{goldNetRow.style.display='none';}
 }
 
 function renderSources(){
   var today=todayStr(), by={}, total=0;
-  records.forEach(function(r){if(r.date!==today)return;var v=r.qty*r.price;by[r.source]=(by[r.source]||0)+v;total+=v;});
+  records.forEach(function(r){
+    if(r.date!==today||r.kind==='out')return; /* 支出不计入收入分布 */
+    var v=r.kind==='in'?r.price:r.qty*r.price;
+    by[r.source]=(by[r.source]||0)+v;total+=v;
+  });
   var names=Object.keys(by).sort(function(a,b){return by[b]-by[a];});
   if(!names.length){srcList.innerHTML='<div class="empty" style="padding:18px 0">今日暂无记录</div>';return;}
   srcList.innerHTML=names.map(function(n){
@@ -581,7 +630,11 @@ function renderTrend(){
 
 function renderSourceChart(){
   var today=todayStr(), by={};
-  records.forEach(function(r){if(r.date!==today)return;var v=r.qty*r.price;by[r.source]=(by[r.source]||0)+v;});
+  records.forEach(function(r){
+    if(r.date!==today||r.kind==='out')return;
+    var v=r.kind==='in'?r.price:r.qty*r.price;
+    by[r.source]=(by[r.source]||0)+v;
+  });
   var data=Object.keys(by).map(function(k){return {name:k,value:by[k]};});
   var emptyEl=el('srcEmpty'), box=el('chartSource');
   if(!window.echarts){emptyEl.style.display='block';emptyEl.textContent='图表库加载失败，请检查网络后刷新';return;}
@@ -683,9 +736,35 @@ function bindEvents(){
   itemSource.innerHTML=SRCS.map(function(s){return '<option>'+s+'</option>';}).join('');
   el('npCat').innerHTML=CATS.map(function(c){return '<option>'+c+'</option>';}).join('');
 
+  /* 类型切换：物品 / 金币收入 / 金币支出 */
+  function syncKindUI(){
+    var k=recKind.value,isGold=k!=='item';
+    rowItem.style.display=isGold?'none':'';
+    rowPriceQty.style.display=isGold?'none':'';
+    rowGoldAmt.style.display=isGold?'':'none';
+    addBtnText.textContent=isGold?(k==='in'?'记录收入 · 计入今日收益':'记录支出 · 计入今日花销'):'记录这笔 · 计入今日收益';
+    itemSource.innerHTML=(k==='in'?GSRCS_IN:(k==='out'?GSRCS_OUT:SRCS)).map(function(s){return '<option>'+s+'</option>';}).join('');
+    if(isGold)goldAmt.focus();
+  }
+  recKind.addEventListener('change',syncKindUI);
+
   addForm.addEventListener('submit',function(e){
     e.preventDefault();
     var date=recDate.value||todayStr();
+    var kind=recKind.value; /* item | in | out */
+    if(kind!=='item'){
+      /* 金币收入 / 支出 */
+      var amt=parseFloat(goldAmt.value);
+      if(isNaN(amt)||amt<=0){toast('请输入有效金额（万）');goldAmt.focus();return;}
+      var label=kind==='in'?'金币收入':'金币支出';
+      records.push({id:Date.now()+Math.random().toString(36).slice(2,6),
+        kind:kind,date:date,item:label,qty:1,price:amt,source:itemSource.value,note:itemNote.value.trim(),ts:Date.now()});
+      save();renderAll();
+      toast((kind==='in'?'已记收入 +':'已记支出 -')+fmtWan(amt)+'万（'+fmtYuan(amt)+'） · '+itemSource.value);
+      goldAmt.value='';itemNote.value='';
+      goldAmt.focus();
+      return;
+    }
     var name=itemName.value.trim();
     if(!name){toast('请先输入物品名称');itemName.focus();return;}
     var price=parseFloat(itemPrice.value);
@@ -693,7 +772,7 @@ function bindEvents(){
     if(isNaN(price)||price<0){toast('请输入有效单价（万）');itemPrice.focus();return;}
     var qty=Math.max(1,parseInt(itemQty.value,10)||1);
     records.push({id:Date.now()+Math.random().toString(36).slice(2,6),
-      date:date,item:name,qty:qty,price:price,source:itemSource.value,note:itemNote.value.trim(),ts:Date.now()});
+      kind:'item',date:date,item:name,qty:qty,price:price,source:itemSource.value,note:itemNote.value.trim(),ts:Date.now()});
     save();renderAll();
     toast('已记录 '+name+' ×'+qty+' · '+fmtWan(price*qty)+'万（'+fmtYuan(price*qty)+'）');
     itemName.value='';itemPrice.value='';itemQty.value='1';itemNote.value='';
@@ -702,6 +781,7 @@ function bindEvents(){
   });
 
   itemName.addEventListener('input',function(){
+    if(recKind.value!=='item'){priceMatch.style.display='none';return;}
     var v=itemName.value.trim();
     if(!v){priceMatch.style.display='none';return;}
     var m=prices.filter(function(p){return p.name.indexOf(v)>-1||v.indexOf(p.name)>-1;});
